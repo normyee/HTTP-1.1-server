@@ -3,10 +3,13 @@ import { BadRequestError } from "./errors";
 
 const PORT = 8181;
 
-export class FayuServer {
+export class FayuServerApplication {
   private _app: net.Server;
 
-  private _decodeHttpRequest(clientRequest: Buffer<ArrayBufferLike>) {
+  private _decodeHttpRequest(
+    clientRequest: Buffer<ArrayBufferLike>,
+    client: net.Socket
+  ) {
     try {
       const requestLine = clientRequest.toString().split("\r\n")[0];
       const [method, path, version] = requestLine.split(" ");
@@ -21,7 +24,16 @@ export class FayuServer {
       };
     } catch (error) {
       console.error(error);
-      //IDK GONNA FIGURE IT OUT
+      if (error instanceof BadRequestError) {
+        client.write(
+          "HTTP/1.1 400 Bad Request\r\n" +
+            "Content-Length: 0\r\n" +
+            "Connection: close\r\n" +
+            "\r\n"
+        );
+
+        client.end();
+      }
     }
   }
 
@@ -38,7 +50,7 @@ export class FayuServer {
             `
         );
 
-        const decodedHttpRequest = this._decodeHttpRequest(data);
+        const decodedHttpRequest = this._decodeHttpRequest(data, socket);
         console.log(decodedHttpRequest);
       });
 
@@ -57,6 +69,6 @@ export class FayuServer {
   }
 }
 
-const server = new FayuServer();
+const server = new FayuServerApplication();
 
 server.start();
