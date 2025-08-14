@@ -2,6 +2,17 @@ import net from "net";
 import { BadRequestError, ServerPortError } from "./errors";
 import { HttpResponse } from "./types";
 
+// próximos passos
+
+// 1 - pegar os headers e body no request
+// 2 - aprender os headers principais para manipulação
+// 3 - tipos de content-type
+// 4 - roteamento
+// 5 - middlewares
+// 6 - padronizar erros
+// 7 - técnicas de performance: pré-compilação, radix tree, estudar outras técnicas de performance que fastify usa
+// 8 - response precisa de métodos como: setHeader,
+
 export class FayuxApplication {
   private _app: net.Server;
 
@@ -10,8 +21,15 @@ export class FayuxApplication {
   }
 
   private _getHttpRequest(clientRequest: Buffer<ArrayBufferLike>) {
-    const requestLine = clientRequest.toString().split("\r\n")[0];
-    const [method, path, version] = requestLine.split(" ");
+    const requestLines = clientRequest.toString().split("\r\n");
+    const [method, path, version] = requestLines[0].split(" ");
+    const headers = [];
+
+    for (let i = 1; i < requestLines.length; i++) {
+      if (requestLines[i] === "") break;
+      const [key, value] = requestLines[i].split(":");
+      headers.push(`${key}:${value}`);
+    }
 
     if (!method || !path || !version)
       throw new BadRequestError("Missing method, path or version");
@@ -20,20 +38,19 @@ export class FayuxApplication {
       method,
       path,
       version,
+      headers,
     };
   }
 
   constructor() {
     this._app = net.createServer((socket) => {
-      console.log(
-        `TCP connection established from ${socket.remoteAddress}:${socket.remotePort}`
-      );
-
       socket.on("data", (data) => {
         let response = this._getHttpResponse(socket);
         try {
           console.log(data.toString());
           const request = this._getHttpRequest(data);
+
+          console.log(request);
         } catch (error) {
           if (error instanceof BadRequestError)
             return response.send({ statusCode: error.code, keepAlive: false });
