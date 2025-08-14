@@ -3,10 +3,35 @@ import { BadRequestError } from "./errors";
 
 const PORT = 8181;
 
+type ResponseSendData = {
+  statusCode: number;
+};
+
+class HttpResponse {
+  private _socket: net.Socket;
+  constructor(socket: net.Socket) {
+    this._socket = socket;
+  }
+
+  send({ statusCode }: ResponseSendData) {
+    if (statusCode === 400)
+      this._socket.write(
+        `HTTP/1.1 ${statusCode} Bad Request\r\n` +
+          `Content-Length: 0\r\n` +
+          `Connection: close\r\n` +
+          `\r\n`
+      );
+  }
+}
+
 export class FayuServerApplication {
   private _app: net.Server;
 
-  private _decodeHttpRequest(clientRequest: Buffer<ArrayBufferLike>) {
+  private _getHttpResponse(socket: net.Socket) {
+    return new HttpResponse(socket);
+  }
+
+  private _getHttpRequest(clientRequest: Buffer<ArrayBufferLike>) {
     const requestLine = clientRequest.toString().split("\r\n")[0];
     const [method, path, version] = requestLine.split(" ");
 
@@ -27,26 +52,18 @@ export class FayuServerApplication {
       );
 
       socket.on("data", (data) => {
+        let response = this._getHttpResponse(socket);
         try {
           console.log(
             `Received data: 
             ${data.toString()}
             `
           );
-
-          const decodedHttpRequest = this._decodeHttpRequest(data);
-          console.log(decodedHttpRequest);
+          const request = this._getHttpRequest(data);
+          console.log(request);
         } catch (error) {
-          if (error instanceof BadRequestError) {
-            socket.write(
-              `HTTP/1.1 ${error.code} Bad Request\r\n` +
-                `Content-Length: 0\r\n` +
-                `Connection: close\r\n` +
-                `\r\n`
-            );
-
-            socket.end();
-          }
+          if (error instanceof BadRequestError)
+            return response.send({ statusCode: error.code });
         }
       });
 
