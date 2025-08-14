@@ -6,35 +6,18 @@ const PORT = 8181;
 export class FayuServerApplication {
   private _app: net.Server;
 
-  private _decodeHttpRequest(
-    clientRequest: Buffer<ArrayBufferLike>,
-    client: net.Socket
-  ) {
-    try {
-      const requestLine = clientRequest.toString().split("\r\n")[0];
-      const [method, path, version] = requestLine.split(" ");
+  private _decodeHttpRequest(clientRequest: Buffer<ArrayBufferLike>) {
+    const requestLine = clientRequest.toString().split("\r\n")[0];
+    const [method, path, version] = requestLine.split(" ");
 
-      if (!method || !path || !version)
-        throw new BadRequestError("Missing method, path or version");
+    if (!method || !path || !version)
+      throw new BadRequestError("Missing method, path or version");
 
-      return {
-        method,
-        path,
-        version,
-      };
-    } catch (error) {
-      console.error(error);
-      if (error instanceof BadRequestError) {
-        client.write(
-          "HTTP/1.1 400 Bad Request\r\n" +
-            "Content-Length: 0\r\n" +
-            "Connection: close\r\n" +
-            "\r\n"
-        );
-
-        client.end();
-      }
-    }
+    return {
+      method,
+      path,
+      version,
+    };
   }
 
   constructor() {
@@ -44,14 +27,27 @@ export class FayuServerApplication {
       );
 
       socket.on("data", (data) => {
-        console.log(
-          `Received data: 
+        try {
+          console.log(
+            `Received data: 
             ${data.toString()}
             `
-        );
+          );
 
-        const decodedHttpRequest = this._decodeHttpRequest(data, socket);
-        console.log(decodedHttpRequest);
+          const decodedHttpRequest = this._decodeHttpRequest(data);
+          console.log(decodedHttpRequest);
+        } catch (error) {
+          if (error instanceof BadRequestError) {
+            socket.write(
+              `HTTP/1.1 ${error.code} Bad Request\r\n` +
+                `Content-Length: 0\r\n` +
+                `Connection: close\r\n` +
+                `\r\n`
+            );
+
+            socket.end();
+          }
+        }
       });
 
       socket.on("end", () => {
