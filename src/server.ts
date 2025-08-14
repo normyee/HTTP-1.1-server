@@ -18,7 +18,7 @@ type Handler = (request: any, response: HttpResponse) => void;
 export class FayuxApplication {
   private _app: net.Server;
 
-  private _routes: Record<string, Handler> = {};
+  private _routes: Record<string, Record<string, Handler>> = {};
 
   private _getHttpResponse(socket: net.Socket) {
     return new HttpResponse(socket);
