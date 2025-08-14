@@ -1,26 +1,38 @@
 import net from "net";
 import { BadRequestError } from "./errors";
+import { ResponseSendData } from "./types";
 
 const PORT = 8181;
 
-type ResponseSendData = {
-  statusCode: number;
-};
-
 class HttpResponse {
   private _socket: net.Socket;
+
+  private _getTextCode(code: number) {
+    switch (code) {
+      case 400:
+        return "Bad Request";
+      case 200:
+        return "OK";
+      case 500:
+        return "Internal Server Error";
+      default:
+        "";
+    }
+  }
+
   constructor(socket: net.Socket) {
     this._socket = socket;
   }
 
-  send({ statusCode }: ResponseSendData) {
-    if (statusCode === 400)
-      this._socket.write(
-        `HTTP/1.1 ${statusCode} Bad Request\r\n` +
-          `Content-Length: 0\r\n` +
-          `Connection: close\r\n` +
-          `\r\n`
-      );
+  send({ statusCode, keepAlive }: ResponseSendData) {
+    this._socket.write(
+      `HTTP/1.1 ${statusCode} ${this._getTextCode(statusCode)}\r\n` +
+        `Content-Length: 0\r\n` +
+        `Connection: ${keepAlive ? "keep-alive" : "close"}\r\n` +
+        `\r\n`
+    );
+
+    if (!keepAlive) return this._socket.end();
   }
 }
 
@@ -60,10 +72,9 @@ export class FayuServerApplication {
             `
           );
           const request = this._getHttpRequest(data);
-          console.log(request);
         } catch (error) {
           if (error instanceof BadRequestError)
-            return response.send({ statusCode: error.code });
+            return response.send({ statusCode: error.code, keepAlive: false });
         }
       });
 
