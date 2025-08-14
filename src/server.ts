@@ -6,15 +6,19 @@ import { HttpResponse } from "./types";
 
 // 1 - pegar os headers e body no request
 // 2 - aprender os headers principais para manipulação
-// 3 - tipos de content-type
-// 4 - roteamento
-// 5 - middlewares
-// 6 - padronizar erros
-// 7 - técnicas de performance: pré-compilação, radix tree, estudar outras técnicas de performance que fastify usa
-// 8 - response precisa de métodos como: setHeader,
+// 3 - roteamento
+// 4 - middlewares
+// 5 - padronizar erros
+// 6 - técnicas de performance: pré-compilação, radix tree, estudar outras técnicas de performance que fastify usa
+// 7 - response precisa de métodos como: setHeader,
+
+//preciso criar retorno Response para Handler
+type Handler = (request: any, response: HttpResponse) => void;
 
 export class FayuxApplication {
   private _app: net.Server;
+
+  private _routes: Record<string, Handler> = {};
 
   private _getHttpResponse(socket: net.Socket) {
     return new HttpResponse(socket);
