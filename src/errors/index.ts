@@ -13,3 +13,10 @@ export class BadRequestError extends HTTPServerError {
     this.code = 400;
   }
 }
+
+export class ServerPortError extends HTTPServerError {
+  constructor(message: string) {
+    super(message);
+    this.name = this.constructor.name;
+  }
+}
