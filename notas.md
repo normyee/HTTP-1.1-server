@@ -11,6 +11,8 @@ const server = net.createServer(socket => {
 HTTP - estudos para entender como funciona low-level
 
 ESTRUTURA BÁSICA:
+
+REQUEST:
 ```
 <Request-Line>
 <Headers>
@@ -25,3 +27,25 @@ REQUEST LINE -> método, path, versão (GET /index.html, HTTP/1.1)
 \r -> volta para início da linha
 \n -> quebra linha
 \r\n -> garantimos que a quebra de linha funcione tanto para WINDOWS quanto outros OS
+
+RESPONSE
+Uma resposta http/1.1 típica tem três partes principais:
+```
+<status-line>\r\n
+<header1>\r\n
+<header2>\r\n
+...
+\r\n
+<body>
+```
+*status line informa a versão e o código de status -> HTTP/1.1 400 Bad Request
+*headers → dão contexto pro cliente (tipo tamanho do corpo, tipo de conteúdo, se vai fechar a conexão…)
+
+Cabeçalho de Response:
+Content-Length: 0 -> indica o tamanho do body
+
+Connection: close -> fecha a conexão.
+OBS: o HTTP/1.1, por padrão, as conexões são persistentes (keep-alive). ou seja, o cliente pode enviar várias requisições pelo mesmo socket sem precisar abrir uma nova conexão. Em caso de erro, faz mais sentido fechar a conexão.
+
+
+O socket é uma conexão TCP bruta. tudo que você escreve nele é uma sequência de bytes que vai pro cliente.
