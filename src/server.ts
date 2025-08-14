@@ -1,42 +1,8 @@
 import net from "net";
-import { BadRequestError } from "./errors";
-import { ResponseSendData } from "./types";
+import { BadRequestError, ServerPortError } from "./errors";
+import { HttpResponse } from "./types";
 
-const PORT = 8181;
-
-class HttpResponse {
-  private _socket: net.Socket;
-
-  private _getTextCode(code: number) {
-    switch (code) {
-      case 400:
-        return "Bad Request";
-      case 200:
-        return "OK";
-      case 500:
-        return "Internal Server Error";
-      default:
-        "";
-    }
-  }
-
-  constructor(socket: net.Socket) {
-    this._socket = socket;
-  }
-
-  send({ statusCode, keepAlive }: ResponseSendData) {
-    this._socket.write(
-      `HTTP/1.1 ${statusCode} ${this._getTextCode(statusCode)}\r\n` +
-        `Content-Length: 0\r\n` +
-        `Connection: ${keepAlive ? "keep-alive" : "close"}\r\n` +
-        `\r\n`
-    );
-
-    if (!keepAlive) return this._socket.end();
-  }
-}
-
-export class FayuServerApplication {
+export class FayuxApplication {
   private _app: net.Server;
 
   private _getHttpResponse(socket: net.Socket) {
@@ -66,11 +32,7 @@ export class FayuServerApplication {
       socket.on("data", (data) => {
         let response = this._getHttpResponse(socket);
         try {
-          console.log(
-            `Received data: 
-            ${data.toString()}
-            `
-          );
+          console.log(data.toString());
           const request = this._getHttpRequest(data);
         } catch (error) {
           if (error instanceof BadRequestError)
@@ -86,13 +48,15 @@ export class FayuServerApplication {
     });
   }
 
-  start() {
-    this._app.listen(PORT, () => {
-      console.log(`TCP server is listening on port 8080`);
-    });
+  start(PORT: number, callback: () => void) {
+    if (!PORT) throw new ServerPortError("Server port is needed");
+    this._app.listen(PORT, callback);
   }
 }
 
-const server = new FayuServerApplication();
+const PORT = 8181;
+const server = new FayuxApplication();
 
-server.start();
+server.start(PORT, () => {
+  console.log(`TCP server is listening on port ${PORT}`);
+});
