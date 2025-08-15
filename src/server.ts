@@ -20,6 +20,14 @@ export class FayuxApplication {
 
   private _routes: Record<string, Record<string, Handler>> = {};
 
+  private _registerRoute(method: string, path: string, handler: Handler) {
+    const m = method.toUpperCase();
+
+    if (!this._routes[m]) this._routes[m] = {};
+
+    this._routes[m][path] = handler;
+  }
+
   private _getHttpResponse(socket: net.Socket) {
     return new HttpResponse(socket);
   }
@@ -75,9 +83,25 @@ export class FayuxApplication {
     });
   }
 
-  start(PORT: number, callback: () => void) {
+  public start(PORT: number, callback: () => void) {
     if (!PORT) throw new ServerPortError("Server port is needed");
     this._app.listen(PORT, callback);
+  }
+
+  public get(path: string, handler: Handler) {
+    this._registerRoute("GET", path, handler);
+  }
+
+  public post(path: string, handler: Handler) {
+    this._registerRoute("POST", path, handler);
+  }
+
+  public delete(path: string, handler: Handler) {
+    this._registerRoute("DELETE", path, handler);
+  }
+
+  public put(path: string, handler: Handler) {
+    this._registerRoute("PUT", path, handler);
   }
 }
 
