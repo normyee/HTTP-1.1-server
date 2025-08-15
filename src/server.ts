@@ -27,12 +27,19 @@ export class FayuxApplication {
   private _getHttpRequest(clientRequest: Buffer<ArrayBufferLike>) {
     const requestLines = clientRequest.toString().split("\r\n");
     const [method, path, version] = requestLines[0].split(" ");
-    const headers = [];
+    const headers: Record<string, string> = {};
 
     for (let i = 1; i < requestLines.length; i++) {
-      if (requestLines[i] === "") break;
-      const [key, value] = requestLines[i].split(":");
-      headers.push(`${key}:${value}`);
+      const line = requestLines[i];
+      if (line === "") break;
+
+      const separatorIndex = line.indexOf(":");
+      if (separatorIndex === -1) continue;
+
+      const key = line.slice(0, separatorIndex).trim();
+      const value = line.slice(separatorIndex + 1).trim();
+
+      headers[key] = value;
     }
 
     if (!method || !path || !version)
@@ -51,7 +58,6 @@ export class FayuxApplication {
       socket.on("data", (data) => {
         let response = this._getHttpResponse(socket);
         try {
-          console.log(data.toString());
           const request = this._getHttpRequest(data);
 
           console.log(request);
