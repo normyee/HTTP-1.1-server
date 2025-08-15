@@ -2,16 +2,6 @@ import net from "net";
 import { BadRequestError, ServerPortError } from "./errors";
 import { HttpResponse } from "./types";
 
-// próximos passos
-
-// 1 - pegar os headers e body no request
-// 2 - aprender os headers principais para manipulação
-// 3 - roteamento
-// 4 - middlewares
-// 5 - padronizar erros
-// 6 - técnicas de performance: pré-compilação, radix tree, estudar outras técnicas de performance que fastify usa
-// 7 - response precisa de métodos como: setHeader,
-
 //preciso criar retorno Response para Handler
 type Handler = (request: any, response: HttpResponse) => void;
 
@@ -61,14 +51,28 @@ export class FayuxApplication {
     };
   }
 
+  private async _onRequest(req: any, res: HttpResponse) {
+    const method = req.method.toUpperCase();
+    const path = req.path;
+    const route = this._routes[method][path];
+
+    if (!route) return res.send({ statusCode: 404, keepAlive: false });
+
+    try {
+      await Promise.resolve(route(req, res));
+    } catch (error) {
+      return res.send({ statusCode: 500, keepAlive: false });
+    }
+  }
+
   constructor() {
     this._app = net.createServer((socket) => {
-      socket.on("data", (data) => {
+      socket.on("data", async (data) => {
         let response = this._getHttpResponse(socket);
         try {
           const request = this._getHttpRequest(data);
 
-          console.log(request);
+          await this._onRequest(request, response);
         } catch (error) {
           if (error instanceof BadRequestError)
             return response.send({ statusCode: error.code, keepAlive: false });
@@ -107,6 +111,10 @@ export class FayuxApplication {
 
 const PORT = 8181;
 const server = new FayuxApplication();
+
+server.get("/users", (req: any, res: HttpResponse) => {
+  console.log("teste", req.headers);
+});
 
 server.start(PORT, () => {
   console.log(`TCP server is listening on port ${PORT}`);
