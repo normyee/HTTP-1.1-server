@@ -48,11 +48,14 @@ export const ContentTypes = {
   APPLICATION_GZIP: "application/gzip",
   APPLICATION_X_TAR: "application/x-tar",
   APPLICATION_MSWORD: "application/msword",
-  APPLICATION_VND_OPENXML_WORD: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  APPLICATION_VND_OPENXML_WORD:
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   APPLICATION_VND_EXCEL: "application/vnd.ms-excel",
-  APPLICATION_VND_OPENXML_EXCEL: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  APPLICATION_VND_OPENXML_EXCEL:
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   APPLICATION_VND_POWERPOINT: "application/vnd.ms-powerpoint",
-  APPLICATION_VND_OPENXML_POWERPOINT: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  APPLICATION_VND_OPENXML_POWERPOINT:
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 
   FONT_TTF: "font/ttf",
   FONT_OTF: "font/otf",
@@ -64,13 +67,18 @@ export const ContentTypes = {
   APPLICATION_RTF: "application/rtf",
 } as const;
 
-
 export class HttpResponse {
   private readonly _socket: net.Socket;
   public headers: Record<string, string> = {};
+  private _statusCode: number = 200;
+  private _keepAlive: boolean = true;
 
-  private _getTextCode(code: number) {
-    switch (code) {
+  constructor(socket: net.Socket) {
+    this._socket = socket;
+  }
+
+  private get _getTextCode() {
+    switch (this._statusCode) {
       case 400:
         return "Bad Request";
       case 200:
@@ -82,26 +90,58 @@ export class HttpResponse {
     }
   }
 
-  get content() {
-    return { types: ContentTypes };
+  keepAlive(value: boolean) {
+    this._keepAlive = value;
+
+    return this;
+  }
+
+  statusCode(code: number) {
+    this._statusCode = code;
+
+    return this;
   }
 
   setContentType(type: string) {
     this.headers["Content-Type"] = type;
   }
 
-  constructor(socket: net.Socket) {
-    this._socket = socket;
+  setHeader(key: string, value: string) {
+    this.headers[key] = value;
+
+    return this;
   }
 
-  send({ statusCode, keepAlive }: ResponseSendData) {
+  send(text: string) {
+    this.setContentType(ContentTypes.TEXT_PLAIN);
+    this._writeResponse(Buffer.from(text));
+  }
+
+  json(data: unknown) {
+    this.setContentType(ContentTypes.APPLICATION_JSON);
+    this._writeResponse(Buffer.from(JSON.stringify(data)));
+  }
+
+  html(html: string) {
+    this.setContentType(ContentTypes.TEXT_HTML);
+    this._writeResponse(Buffer.from(html));
+  }
+
+  private _writeResponse(content: Buffer) {
+    const headers = Object.entries(this.headers)
+      .map(([key, value]) => `${key}:${value}`)
+      .join("\r\n");
+
     this._socket.write(
-      `HTTP/1.1 ${statusCode} ${this._getTextCode(statusCode)}\r\n` +
-      `Content-Length: 0\r\n` +
-      `Connection: ${keepAlive ? "keep-alive" : "close"}\r\n` +
-      `\r\n`
+      `HTTP/1.1 ${this._statusCode} ${this._getTextCode}\r\n` +
+        `${headers}\r\n` +
+        `Content-Length: ${content.length}\r\n` +
+        `Connection: ${this._keepAlive ? "keep-alive" : "close"}\r\n` +
+        `\r\n`
     );
 
-    if (!keepAlive) return this._socket.end();
+    this._socket.write(content);
+
+    if (!this._keepAlive) return this._socket.end();
   }
 }
